@@ -56,7 +56,7 @@ train:
   num_workers: 2
   pin_memory: True
   drop_last: False
-  batch_size: 1     # adjust according to gpu resources
+  batch_size: 64     # adjust according to gpu resources
   multi_scale: True
   scale_factor: 16
   power: 2.5
@@ -72,7 +72,7 @@ test:
   width: 2048
   height: 1024
   base_size: 1024
-  batch_size: 1
+  batch_size: 64
   output_index_pidnet: 1 # at index 1, we have I branch output
   output_index_icnet: 0
   output_index_bisenet: 0
