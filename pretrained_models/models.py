@@ -1,6 +1,6 @@
 import sys
 import torch
-sys.path.append("/content/drive/MyDrive/Colab Notebooks/1_Papers/3_Attack_generation")
+sys.path.append("/kaggle/working/adversarial-patch-transferability/")
 from pretrained_models.ICNet.icnet import ICNet
 from pretrained_models.BisNetV1.model import BiSeNetV1
 from pretrained_models.BisNetV2.model import BiSeNetV2
@@ -18,11 +18,14 @@ class Models():
   def get(self):
     if 'pidnet' in self.config.model.name:
       if '_s' in self.config.model.name:
-        model = torch.load('/content/drive/MyDrive/Colab Notebooks/1_Papers/3_Attack_generation/pretrained_models/PIDNet/PIDNet_S_Cityscapes_test.pt',map_location=self.device)
+        model = torch.load('/kaggle/working/adversarial-patch-transferability/pretrained_models/PIDNet/PIDNet_S_Cityscapes_test.pt',map_location=self.device)
+
+
+        # I ONLY CARE ABOUT PIDNET_S MODEL FOR NOW 
       if '_m' in self.config.model.name:
-        model = torch.load('/content/drive/MyDrive/Colab Notebooks/1_Papers/3_Attack_generation/pretrained_models/PIDNet/PIDNet_M_Cityscapes_test.pt',map_location=self.device)
+        model = torch.load('/kaggle/working/adversarial-patch-transferability/pretrained_models/PIDNet/PIDNet_M_Cityscapes_test.pt',map_location=self.device)
       if '_l' in self.config.model.name:
-        model = torch.load('/content/drive/MyDrive/Colab Notebooks/1_Papers/3_Attack_generation/pretrained_models/PIDNet/PIDNet_L_Cityscapes_test.pt',map_location=self.device)
+        model = torch.load('/kaggle/working/adversarial-patch-transferability/pretrained_models/PIDNet/PIDNet_L_Cityscapes_test.pt',map_location=self.device)
       
   
       pidnet = get_pred_model(name = self.config.model.name, num_classes = 19).to(self.device)

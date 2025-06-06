@@ -1,1 +1,8 @@
 just to know whether is it valid pushing
+
+cityscapes.py       ok
+model.py        ok
+saare individual model ke .py
+config.yaml     ok
+utils.py        ok
+trainer.py     ok
