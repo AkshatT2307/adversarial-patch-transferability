@@ -6,3 +6,16 @@ saare individual model ke .py
 config.yaml     ok
 utils.py        ok
 trainer.py     ok
+
+
+
+x = (2048 - 200)//2
+y = (1024 - 200)//2
+x_end = x + 200
+y_end = y + 200
+
+
+
+this is how we are fixing the test loacation and scale of the patch, i want to insert this in each loop so it can be random for each image.
+so the main code to be changed is identified now if possible, implement this as soon as possible when you get the resources
+Experiments\pidnet_s.p
