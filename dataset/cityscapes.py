@@ -120,7 +120,7 @@ class Cityscapes(BaseDataset):
         name = item["name"]
         
         # Add debug prints to check paths
-        image_path = os.path.join(self.root, "Cityscapes", item["img"])
+        image_path = os.path.join(self.root, item["img"])
         print(f"Trying to load image from: {image_path}")
         
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
@@ -134,7 +134,7 @@ class Cityscapes(BaseDataset):
             image = image.transpose((2, 0, 1))
             return image.copy(), np.array(size), name
 
-        label_path = os.path.join(self.root, "Cityscapes", item["label"])
+        label_path = os.path.join(self.root, item["label"])
         print(f"Trying to load label from: {label_path}")
         
         label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
