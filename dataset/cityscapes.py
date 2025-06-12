@@ -62,6 +62,27 @@ class Cityscapes(BaseDataset):
         
         self.bd_dilate_size = bd_dilate_size
     
+    # def read_files(self):
+    #     files = []
+    #     if 'test' in self.list_path:
+    #         for item in self.img_list:
+    #             image_path = item
+    #             name = os.path.splitext(os.path.basename(image_path[0]))[0]
+    #             files.append({
+    #                 "img": image_path[0],
+    #                 "name": name,
+    #             })
+    #     else:
+    #         for item in self.img_list:
+    #             image_path, label_path = item
+    #             name = os.path.splitext(os.path.basename(label_path))[0]
+    #             files.append({
+    #                 "img": image_path,
+    #                 "label": label_path,
+    #                 "name": name
+    #             })
+    #     return files
+
     def read_files(self):
         files = []
         if 'test' in self.list_path:
@@ -93,22 +114,41 @@ class Cityscapes(BaseDataset):
                 label[temp == k] = v
         return label
 
+
     def __getitem__(self, index):
         item = self.files[index]
         name = item["name"]
-        image = cv2.imread(os.path.join(self.root,'cityscapes',item["img"]),
-                           cv2.IMREAD_COLOR)
+        # Remove 'cityscapes' from the path join since it's not in your structure
+        image = cv2.imread(os.path.join(self.root, item["img"]),
+                        cv2.IMREAD_COLOR)
         size = image.shape
 
         if 'test' in self.list_path:
             image = self.input_transform(image)
             image = image.transpose((2, 0, 1))
-
             return image.copy(), np.array(size), name
 
-        label = cv2.imread(os.path.join(self.root,'cityscapes',item["label"]),
-                           cv2.IMREAD_GRAYSCALE)
+        # Remove 'cityscapes' from the path join since it's not in your structure
+        label = cv2.imread(os.path.join(self.root, item["label"]),
+                        cv2.IMREAD_GRAYSCALE)
         label = self.convert_label(label)
+
+    # def __getitem__(self, index):
+    #     item = self.files[index]
+    #     name = item["name"]
+    #     image = cv2.imread(os.path.join(self.root,'cityscapes',item["img"]),
+    #                        cv2.IMREAD_COLOR)
+    #     size = image.shape
+
+    #     if 'test' in self.list_path:
+    #         image = self.input_transform(image)
+    #         image = image.transpose((2, 0, 1))
+
+    #         return image.copy(), np.array(size), name
+
+    #     label = cv2.imread(os.path.join(self.root,'cityscapes',item["label"]),
+    #                        cv2.IMREAD_GRAYSCALE)
+    #     label = self.convert_label(label)
 
         image, label, edge = self.gen_sample(image, label, 
                                 self.multi_scale, self.flip, edge_size=self.bd_dilate_size)
