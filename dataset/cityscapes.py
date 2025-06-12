@@ -118,9 +118,15 @@ class Cityscapes(BaseDataset):
     def __getitem__(self, index):
         item = self.files[index]
         name = item["name"]
-        # Remove 'cityscapes' from the path join since it's not in your structure
-        image = cv2.imread(os.path.join(self.root, item["img"]),
-                        cv2.IMREAD_COLOR)
+        
+        # Add debug prints to check paths
+        image_path = os.path.join(self.root, "Cityscapes", item["img"])
+        print(f"Trying to load image from: {image_path}")
+        
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        if image is None:
+            raise ValueError(f"Failed to load image at {image_path}")
+        
         size = image.shape
 
         if 'test' in self.list_path:
@@ -128,10 +134,19 @@ class Cityscapes(BaseDataset):
             image = image.transpose((2, 0, 1))
             return image.copy(), np.array(size), name
 
-        # Remove 'cityscapes' from the path join since it's not in your structure
-        label = cv2.imread(os.path.join(self.root, item["label"]),
-                        cv2.IMREAD_GRAYSCALE)
+        label_path = os.path.join(self.root, "Cityscapes", item["label"])
+        print(f"Trying to load label from: {label_path}")
+        
+        label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+        if label is None:
+            raise ValueError(f"Failed to load label at {label_path}")
+            
         label = self.convert_label(label)
+
+        image, label, edge = self.gen_sample(image, label, 
+                                self.multi_scale, self.flip, edge_size=self.bd_dilate_size)
+
+        return image.copy(), label.copy(), edge.copy(), np.array(size), name
 
     # def __getitem__(self, index):
     #     item = self.files[index]
@@ -150,10 +165,10 @@ class Cityscapes(BaseDataset):
     #                        cv2.IMREAD_GRAYSCALE)
     #     label = self.convert_label(label)
 
-        image, label, edge = self.gen_sample(image, label, 
-                                self.multi_scale, self.flip, edge_size=self.bd_dilate_size)
+    #     image, label, edge = self.gen_sample(image, label, 
+    #                             self.multi_scale, self.flip, edge_size=self.bd_dilate_size)
 
-        return image.copy(), label.copy(), edge.copy(), np.array(size), name
+    #     return image.copy(), label.copy(), edge.copy(), np.array(size), name
 
     
     def single_scale_inference(self, config, model, image):
