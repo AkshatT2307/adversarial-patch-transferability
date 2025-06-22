@@ -60,10 +60,11 @@ class PatchTrainer():
           base_size = config.test.base_size,
           crop_size = (config.test.height,config.test.width),
         )
-      
+
+      cityscape_train_subset = Subset(cityscape_train, range(1000))          # just used the subset of first 1000 images
       self.train_dataloader = torch.utils.data.DataLoader(dataset=cityscape_train,
                                               batch_size=self.batch_train,
-                                              shuffle=config.train.shuffle,
+                                              shuffle=False,                        # suffle : False
                                               num_workers=config.train.num_workers,
                                               pin_memory=config.train.pin_memory,
                                               drop_last=config.train.drop_last)
