@@ -63,7 +63,7 @@ class PatchTrainer():
         )
 
       cityscape_train_subset = Subset(cityscape_train, range(1000))          # just used the subset of first 1000 images
-      self.train_dataloader = torch.utils.data.DataLoader(dataset=cityscape_train,
+      self.train_dataloader = torch.utils.data.DataLoader(dataset=cityscape_train_subset,
                                               batch_size=self.batch_train,
                                               shuffle=False,                        # suffle : False
                                               num_workers=config.train.num_workers,
