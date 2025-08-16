@@ -1,5 +1,7 @@
 import sys
-sys.path.append("/kaggle/working/adversarial-patch-transferability")
+# Save the original sys.path
+original_sys_path = sys.path.copy()
+sys.path.append("/kaggle/working/adversarial-patch-transferability/")
 from dataset.cityscapes import Cityscapes
 
 from pretrained_models.models import Models
@@ -18,7 +20,9 @@ import torch
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-# from torch.utils.data import Subset
+
+# Restore original sys.path to avoid conflicts or shadowing
+sys.path = original_sys_path
 
 class PatchTrainer():
   def __init__(self,config,main_logger):
@@ -61,11 +65,10 @@ class PatchTrainer():
           base_size = config.test.base_size,
           crop_size = (config.test.height,config.test.width),
         )
-
-      # cityscape_train_subset = Subset(cityscape_train, range(1000))          # just used the subset of first 1000 images
+      
       self.train_dataloader = torch.utils.data.DataLoader(dataset=cityscape_train,
                                               batch_size=self.batch_train,
-                                              shuffle=False,                        # suffle : False
+                                              shuffle=config.train.shuffle,
                                               num_workers=config.train.num_workers,
                                               pin_memory=config.train.pin_memory,
                                               drop_last=config.train.drop_last)
@@ -115,10 +118,9 @@ class PatchTrainer():
 
   def train(self):
     epochs, iters_per_epoch, max_iters = self.epochs, self.iters_per_epoch, self.max_iters
-
     start_epoch=0
     switch_epoch=(start_epoch+self.end_epoch)//2
-    
+
     start_time = time.time()
     self.logger.info('Start training, Total Epochs: {:d} = Iterations per epoch {:d}'.format(epochs, iters_per_epoch))
     IoU = []
@@ -146,16 +148,11 @@ class PatchTrainer():
           # plt.show()
 
           # Forward pass through the model (and interpolation if needed)
-          # output = self.model.predict(patched_image,patched_label.shape)
+          output = self.model.predict(patched_image,patched_label.shape)
           #plt.imshow(output.argmax(dim =1)[0].cpu().detach().numpy())
           #plt.show()
           #break
-
-          # Compute adaptive loss
-          # loss = self.criterion.compute_loss(output, patched_label)
-          #loss = self.criterion.compute_loss_direct(output, patched_label)
-
-        with torch.no_grad():
+          with torch.no_grad():
              clean_output = self.model.predict(image, patched_label.shape)
 
           with torch.no_grad():
@@ -168,8 +165,12 @@ class PatchTrainer():
               loss = self.criterion.compute_loss_transegpgd_stage1(output, patched_label, clean_output)
           else:
               loss = self.criterion.compute_loss_transegpgd_stage2(output, patched_label, clean_output)
+              # Compute adaptive loss
+              #loss = self.criterion.compute_loss(output, patched_label)
+              #loss = self.criterion.compute_loss_direct(output, patched_label)
 
-      
+          #loss = self.criterion.compute_loss_transegpgd(output, patched_label, clean_output)
+
           total_loss += loss.item()
           #break
 
