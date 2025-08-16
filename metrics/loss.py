@@ -1,60 +1,87 @@
 import torch
 import torch.nn as nn
 
+class LinearScheduler:
+    """
+    Simple linear scheduler for a value from start to end over total_epochs.
+    """
+    def __init__(self, start_value, end_value, total_epochs):
+        self.start = start_value
+        self.end = end_value
+        self.total = max(total_epochs, 1)
+
+    def get(self, epoch):
+        e = min(max(epoch, 0), self.total)
+        return self.start + (self.end - self.start) * (e / self.total)
+
 class PatchLoss(nn.Module):
     def __init__(self, config):
         super(PatchLoss, self).__init__()
         self.config = config
         self.device = config.experiment.device
         self.ignore_label = config.train.ignore_label
+        self.apply_patch = Patch(config).apply_patch
+        self.ignore_index= config.train.ignore_label
+        #self.feature_extractor = feature_extractor
+        self.gamma=0.7
 
+        # schedulers
+        E1 = config.attack.stage1_epochs
+        E2 = config.attack.stage2_epochs
+        self.gamma_sched = LinearScheduler(config.attack.gamma_start,
+                                          config.attack.gamma_end, E1)
+        self.beta_sched  = LinearScheduler(config.attack.beta_start,
+                                          config.attack.beta_end,  E2)
+        self.current_epoch = 0
+        self.register_buffer('ema_kl', torch.zeros(1, device=self.device))
 
-    def compute_loss(self, model_output, label):
+        # hyper-params
+        self.margin = getattr(config.attack, 'margin', 0.1)
+        self.lambda_ent = getattr(config.attack, 'lambda_ent', 0.1)
+        self.eta = getattr(config.attack, 'eta', 0.5)
+        self.use_feat_div = getattr(config.attack, 'use_feat_div', False)
+
+    def compute_loss_transegpgd_stage1(self, pred, target, clean_pred):
         """
-        Compute the adaptive loss function
+        Stage 1: emphasize hard-to-attack pixels (correctly predicted ones).
         """
+        N, C, H, W = pred.shape
+        pred_softmax = F.softmax(pred, dim=1)
+        target_flat = target.view(-1)
+        pred_label = pred_softmax.argmax(dim=1)
 
-        #print(model_output.shape,true_labels.shape)
-        #print(model_output.argmax(dim=1).shape)
-        ce_loss = nn.CrossEntropyLoss(reduction="none",
-                                      ignore_index=self.config.train.ignore_label)  # Per-pixel loss
-        loss_map = ce_loss(model_output, label.long())  # Compute loss for all pixels
-        #print(f'loss map: {loss_map.shape}')
-              
-      
-        # Get correctly classified and misclassified pixel sets
-        predict = torch.argmax(model_output, 1).float() + 1
-        target = label.float() + 1
-        target[target>=255] = 0
-        # print(predict.dtype,predict.shape,target.dtype,target.shape)
-        # temp1 = (predict == target).float()
-        # temp2 = (target>0).float()
-        # print(temp1.dtype,temp2.dtype)
-        correct_mask = (predict == target)*(target > 0)
-        incorrect_mask = (predict != target)*(target > 0)  # Opposite of correctly classified
-        #print(f'Correct mask: {correct_mask.shape}')  
-        # Compute separate loss terms
-        loss_correct = (loss_map * correct_mask).sum()/correct_mask.sum()  # Loss on correctly classified pixels
-        loss_incorrect = (loss_map * incorrect_mask).sum()/incorrect_mask.sum()  # Loss on already misclassified pixels
+        # Flatten for per-pixel comparison
+        pred_label_flat = pred_label.view(-1)
+        correct_mask = (pred_label_flat == target_flat) & (target_flat != self.ignore_index)
+        incorrect_mask = (pred_label_flat != target_flat) & (target_flat != self.ignore_index)
 
-        # Compute adaptive balancing factor
-        num_correct = correct_mask.sum()
-        num_total = (target != 0).sum()
-        gamma = num_correct / num_total  # Avoid division by zero
+        loss = F.cross_entropy(pred, target.squeeze(1), ignore_index=self.ignore_index, reduction='none').view(-1)
 
-        # Final adaptive loss
-        loss = gamma * loss_correct + (1 - gamma) * loss_incorrect
-        # print(f'Gamma:{gamma}')
-        # print(f'loss correct:{loss_correct}')
-        # print(f'loss incorrect: {loss_incorrect}')
-        #return loss
-        return loss_correct 
+        total_pixels = float(correct_mask.sum() + incorrect_mask.sum() + 1e-8)
 
+        loss_weighted = (1 - self.gamma) * loss[correct_mask].sum() + \
+                        self.gamma * loss[incorrect_mask].sum()
 
-    def compute_loss_direct(self, model_output, label):
+        return loss_weighted / total_pixels
+
+    def compute_loss_transegpgd_stage2(self, pred, target, clean_pred):
         """
-        Compute the adaptive loss function
+        Stage 2: emphasize high-transferability pixels (large KL divergence from clean prediction).
         """
-        ce_loss = nn.CrossEntropyLoss(ignore_index=self.config.train.ignore_label)  # Per-pixel loss
-        loss = ce_loss(model_output, label.long())  # Compute loss for all pixels
-        return loss 
+        pred_softmax = F.softmax(pred, dim=1)
+        clean_softmax = F.softmax(clean_pred, dim=1)
+
+        kl_div = F.kl_div(pred_softmax.log(), clean_softmax, reduction='none').sum(1)  # (N, H, W)
+        kl_mean = kl_div[target != self.ignore_index].mean()
+
+        high_transfer_mask = (kl_div > kl_mean) & (target != self.ignore_index)
+        low_transfer_mask = (kl_div <= kl_mean) & (target != self.ignore_index)
+
+        loss = F.cross_entropy(pred,target.squeeze(1), ignore_index=self.ignore_index, reduction='none')
+
+        total_pixels = float(high_transfer_mask.sum() + low_transfer_mask.sum() + 1e-8)
+
+        loss_weighted = (1 - self.beta) * loss[high_transfer_mask].sum() + \
+                        self.beta * loss[low_transfer_mask].sum()
+
+        return loss_weighted / total_pixels
