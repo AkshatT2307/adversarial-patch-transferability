@@ -1,5 +1,9 @@
 import torchvision.transforms as transforms
 import random
+import torch
+import torch.nn.functional as F
+
+device='cuda' if torch.cuda.is_available else 'cpu'
 
 class Patch:
     def __init__(self,config):
@@ -19,23 +23,29 @@ class Patch:
         """
         patched_image = image.clone()
         patched_label = label.clone()
-        _,c, h, w = image.shape
-        location = self.config.patch.loc
+        B,c,h,w=image.shape
 
-        # Get patch starting coordinates
-        if location == "random":
-            x = random.randint(0, w - self.patch_size)
-            y = random.randint(0, h - self.patch_size)
-        elif location == "center":
-            x = (w - self.patch_size) // 2
-            y = (h - self.patch_size) // 2
-        elif location == "corner":
-            x = 0
-            y = 0
-        elif isinstance(location, tuple):
-            x, y = location
-        else:
-            raise ValueError("Invalid location for patch.")
+
+        # if label is [1,1024,2048]
+        if(patched_label.shape[1]!=1):
+            patched_label = patched_label.unsqueeze(1)  # [B,1,H,W]
+        
+        
+        
+        mask = (patched_label == 1).to(torch.float16).to(device)
+        
+        kernel = torch.ones((1,1,200,200), dtype=torch.float16, device=device)
+        convs = F.conv2d(mask, kernel, stride=1, padding=0)  # [B,1,H-199,W-199]
+        
+        
+        # Max per batch
+        max_idxs = torch.argmax(convs.view(B, -1),dim=1)   # shape [B]
+        
+        
+        # Convert flat indices -> (y,x) coordinates in output space
+        y, x = max_idxs // w, max_idxs % w
+
+
 
         x_end, y_end = x + self.patch_size, y + self.patch_size
 
