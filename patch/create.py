@@ -47,8 +47,13 @@ class Patch:
         #transformed_patch = self.eot_transforms(patch)
         transformed_patch = patch
 
-        # Overlay patch onto the image and accordingly edit the label
         patched_image[:,:, y:y_end, x:x_end] = transformed_patch
         patched_label[:, y:y_end, x:x_end] = self.config.train.ignore_label
-        #print(patched_label[:, y:y_end, x:x_end])
+
+
+        # if the above throws some error
+        # for b in range(B):
+        #     patched_image[b, :, ys[b]:ye[b], xs[b]:xe[b]] = transformed_patch
+        #     patched_label[b,ys[b]:ye[b], xs[b]:xe[b]] = self.config.train.ignore_label
+
         return patched_image, patched_label
