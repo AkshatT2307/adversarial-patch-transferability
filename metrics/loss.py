@@ -55,7 +55,7 @@ class PatchLoss(nn.Module):
         correct_mask = (pred_label_flat == target_flat) & (target_flat != self.ignore_index)
         incorrect_mask = (pred_label_flat != target_flat) & (target_flat != self.ignore_index)
 
-        loss = F.cross_entropy(pred, target.squeeze(1), ignore_index=self.ignore_index, reduction='none').view(-1)
+        loss = F.cross_entropy(pred, target, ignore_index=self.ignore_index, reduction='none').view(-1)
 
         total_pixels = float(correct_mask.sum() + incorrect_mask.sum() + 1e-8)
 
@@ -77,7 +77,7 @@ class PatchLoss(nn.Module):
         high_transfer_mask = (kl_div > kl_mean) & (target != self.ignore_index)
         low_transfer_mask = (kl_div <= kl_mean) & (target != self.ignore_index)
 
-        loss = F.cross_entropy(pred,target.squeeze(1), ignore_index=self.ignore_index, reduction='none')
+        loss = F.cross_entropy(pred,target, ignore_index=self.ignore_index, reduction='none')
 
         total_pixels = float(high_transfer_mask.sum() + low_transfer_mask.sum() + 1e-8)
 
