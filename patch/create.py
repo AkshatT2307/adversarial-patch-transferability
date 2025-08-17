@@ -26,24 +26,18 @@ class Patch:
         B,c,h,w=image.shape
 
 
-        # if label is [1,1024,2048]
-        if(patched_label.shape[1]!=1):
-            patched_label = patched_label.unsqueeze(1)  # [B,1,H,W]
-        
-        
-        
-        mask = (patched_label == 1).to(torch.float16).to(device)
+        mask = (patched_label == 1).unsqueeze(1).to(torch.float16).to(device)
         
         kernel = torch.ones((1,1,200,200), dtype=torch.float16, device=device)
         convs = F.conv2d(mask, kernel, stride=1, padding=0)  # [B,1,H-199,W-199]
         
-        
+        h_out,w_out=convs.shape[2],convs.shape[3]
         # Max per batch
         max_idxs = torch.argmax(convs.view(B, -1),dim=1)   # shape [B]
         
         
         # Convert flat indices -> (y,x) coordinates in output space
-        y, x = max_idxs // w, max_idxs % w
+        y, x = max_idxs // w_out, max_idxs % w_out
 
 
 
